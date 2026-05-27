@@ -10,15 +10,15 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+/* =========================
+   SECURITY MIDDLEWARE
+========================= */
+
+app.use(helmet());
 
 app.use(cors());
 
-app.use(
-  helmet({
-    crossOriginResourcePolicy: false,
-  })
-);
+app.use(express.json());
 
 app.use(morgan("dev"));
 
@@ -26,11 +26,16 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
   message: {
-    error: "Too many requests. Please try again later.",
-  },
+    status: "error",
+    message: "Too many requests, please try again later."
+  }
 });
 
 app.use(limiter);
+
+/* =========================
+   NATURE DATABASE
+========================= */
 
 const natureData = [
   {
@@ -40,10 +45,9 @@ const natureData = [
     benefits: [
       "Antibacterial",
       "Skin treatment",
-      "Immune support",
-    ],
+      "Immune support"
+    ]
   },
-
   {
     name: "Ginger",
     type: "Root",
@@ -51,10 +55,9 @@ const natureData = [
     benefits: [
       "Digestion",
       "Cold relief",
-      "Anti-inflammatory",
-    ],
+      "Anti-inflammatory"
+    ]
   },
-
   {
     name: "Garlic",
     type: "Bulb",
@@ -62,10 +65,9 @@ const natureData = [
     benefits: [
       "Heart health",
       "Immune support",
-      "Blood circulation",
-    ],
+      "Blood circulation"
+    ]
   },
-
   {
     name: "Rice",
     type: "Food",
@@ -73,10 +75,9 @@ const natureData = [
     benefits: [
       "Energy source",
       "Carbohydrates",
-      "Nutrition",
-    ],
+      "Nutrition"
+    ]
   },
-
   {
     name: "Beans",
     type: "Food",
@@ -84,10 +85,9 @@ const natureData = [
     benefits: [
       "Protein",
       "Fiber",
-      "Energy",
-    ],
+      "Energy"
+    ]
   },
-
   {
     name: "Moringa",
     type: "Leaf",
@@ -95,10 +95,9 @@ const natureData = [
     benefits: [
       "Blood sugar support",
       "Vitamins",
-      "Immune boosting",
-    ],
+      "Immune boosting"
+    ]
   },
-
   {
     name: "Turmeric",
     type: "Root",
@@ -106,10 +105,9 @@ const natureData = [
     benefits: [
       "Anti-inflammatory",
       "Pain relief",
-      "Antioxidant",
-    ],
+      "Antioxidant"
+    ]
   },
-
   {
     name: "Onion",
     type: "Bulb",
@@ -117,55 +115,64 @@ const natureData = [
     benefits: [
       "Heart support",
       "Digestion",
-      "Immune support",
-    ],
-  },
+      "Immune support"
+    ]
+  }
 ];
+
+/* =========================
+   ROOT ROUTE
+========================= */
 
 app.get("/", (req, res) => {
   res.json({
     message: "Nature Core API Running",
     status: "secure",
     version: "1.0.0",
+    server: "online",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
   });
 });
+
+/* =========================
+   HEALTH CHECK
+========================= */
+
+app.get("/healthcheck", (req, res) => {
+  res.json({
+    server: "online",
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+/* =========================
+   GET ALL NATURE DATA
+========================= */
 
 app.get("/nature", (req, res) => {
   const search = req.query.search;
 
-  if (!search) {
-    return res.json(natureData);
+  if (search) {
+    const filtered = natureData.filter((item) => {
+      return (
+        item.name.toLowerCase().includes(search.toLowerCase()) ||
+        item.type.toLowerCase().includes(search.toLowerCase()) ||
+        item.category.toLowerCase().includes(search.toLowerCase()) ||
+        item.benefits.join(" ").toLowerCase().includes(search.toLowerCase())
+      );
+    });
+
+    return res.json(filtered);
   }
 
-  const filtered = natureData.filter((item) => {
-    return (
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.type.toLowerCase().includes(search.toLowerCase()) ||
-      item.category.toLowerCase().includes(search.toLowerCase()) ||
-      item.benefits.some((benefit) =>
-        benefit.toLowerCase().includes(search.toLowerCase())
-      )
-    );
-  });
-
-  res.json(filtered);
+  res.json(natureData);
 });
 
-app.get("/categories", (req, res) => {
-  const categories = [
-    ...new Set(natureData.map((item) => item.category)),
-  ];
-
-  res.json(categories);
-});
-
-app.get("/types", (req, res) => {
-  const types = [
-    ...new Set(natureData.map((item) => item.type)),
-  ];
-
-  res.json(types);
-});
+/* =========================
+   GET MEDICINE DATA
+========================= */
 
 app.get("/medicine", (req, res) => {
   const medicine = natureData.filter(
@@ -175,6 +182,10 @@ app.get("/medicine", (req, res) => {
   res.json(medicine);
 });
 
+/* =========================
+   GET NUTRITION DATA
+========================= */
+
 app.get("/nutrition", (req, res) => {
   const nutrition = natureData.filter(
     (item) => item.category === "Nutrition"
@@ -183,14 +194,34 @@ app.get("/nutrition", (req, res) => {
   res.json(nutrition);
 });
 
-app.get("/healthcheck", (req, res) => {
-  res.json({
-    server: "online",
-    uptime: process.uptime(),
-    timestamp: new Date(),
-  });
+/* =========================
+   GET CATEGORIES
+========================= */
+
+app.get("/categories", (req, res) => {
+  const categories = [
+    ...new Set(natureData.map((item) => item.category))
+  ];
+
+  res.json(categories);
 });
 
-app.listen(PORT, "0.0.0.0", () => {
+/* =========================
+   GET TYPES
+========================= */
+
+app.get("/types", (req, res) => {
+  const types = [
+    ...new Set(natureData.map((item) => item.type))
+  ];
+
+  res.json(types);
+});
+
+/* =========================
+   START SERVER
+========================= */
+
+app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
