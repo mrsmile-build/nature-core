@@ -4,28 +4,17 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
-const rateLimit = require("express-rate-limit");
-
-const natureData = require("./data/natureData");
 
 const app = express();
 
-const PORT = process.env.PORT || 3000;
+const natureData = require("./data/natureData");
 
 app.use(express.json());
-
 app.use(cors());
-
 app.use(helmet());
-
 app.use(morgan("dev"));
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
-});
-
-app.use(limiter);
+const PORT = process.env.PORT || 3000;
 
 app.get("/", (req, res) => {
   res.json({
@@ -39,75 +28,88 @@ app.get("/healthcheck", (req, res) => {
   res.json({
     server: "online",
     uptime: process.uptime(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date()
   });
 });
 
 app.get("/nature", (req, res) => {
+
   const search = req.query.search?.toLowerCase();
 
   if (!search) {
     return res.json(natureData);
   }
 
-  const filtered = natureData.filter((item) => {
-    return (
-      item.name.toLowerCase().includes(search) ||
-      item.type.toLowerCase().includes(search) ||
-      item.category.toLowerCase().includes(search) ||
-      item.benefits.some((benefit) =>
-        benefit.toLowerCase().includes(search)
-      )
-    );
-  });
+  const results = natureData.filter(item =>
 
-  res.json(filtered);
+    item.name.toLowerCase().includes(search) ||
+
+    item.category.toLowerCase().includes(search) ||
+
+    item.type.toLowerCase().includes(search) ||
+
+    item.conditions.some(condition =>
+      condition.toLowerCase().includes(search)
+    ) ||
+
+    item.benefits.some(benefit =>
+      benefit.toLowerCase().includes(search)
+    ) ||
+
+    item.properties.some(property =>
+      property.toLowerCase().includes(search)
+    )
+  );
+
+  res.json(results);
 });
 
 app.get("/nature/:id", (req, res) => {
+
   const item = natureData.find(
-    (n) => n.id === parseInt(req.params.id)
+    plant => plant.id === parseInt(req.params.id)
   );
 
   if (!item) {
     return res.status(404).json({
-      error: "Nature item not found"
+      error: "Plant not found"
     });
   }
 
   res.json(item);
 });
 
-app.get("/categories", (req, res) => {
-  const categories = [
-    ...new Set(natureData.map((item) => item.category))
-  ];
+app.get("/premium", (req, res) => {
 
-  res.json(categories);
-});
-
-app.get("/types", (req, res) => {
-  const types = [
-    ...new Set(natureData.map((item) => item.type))
-  ];
-
-  res.json(types);
-});
-
-app.get("/medicine", (req, res) => {
-  const medicine = natureData.filter(
-    (item) => item.category === "Medicine"
+  const premiumPlants = natureData.filter(
+    item => item.level === "premium"
   );
 
-  res.json(medicine);
+  res.json(premiumPlants);
 });
 
-app.get("/nutrition", (req, res) => {
-  const nutrition = natureData.filter(
-    (item) => item.category === "Nutrition"
+app.get("/free", (req, res) => {
+
+  const freePlants = natureData.filter(
+    item => item.level === "free"
   );
 
-  res.json(nutrition);
+  res.json(freePlants);
+});
+
+app.get("/conditions", (req, res) => {
+
+  const conditions = [];
+
+  natureData.forEach(item => {
+    item.conditions.forEach(condition => {
+      if (!conditions.includes(condition)) {
+        conditions.push(condition);
+      }
+    });
+  });
+
+  res.json(conditions);
 });
 
 app.listen(PORT, () => {
